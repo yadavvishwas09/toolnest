@@ -14,7 +14,21 @@ export default function ToolWorkspace({tool}:{tool:Tool}){
  const [start,setStart]=useState('1'),[end,setEnd]=useState('1'),[pages,setPages]=useState('1'),[angle,setAngle]=useState('90'),[width,setWidth]=useState('800'),[height,setHeight]=useState('600'),[keep,setKeep]=useState(true),[quality,setQuality]=useState('0.82'),[format,setFormat]=useState('image/jpeg'),[target,setTarget]=useState('50');
  const input=useRef<HTMLInputElement>(null);const isPdf=tool.category==='PDF';
  const accept=isPdf?(tool.slug==='jpg-to-pdf'?'image/jpeg,image/png,image/webp':'.pdf,application/pdf'):'image/jpeg,image/png,image/webp';
- function pick(list:FileList|null){if(!list)return;setFiles(Array.from(list));setOutputs([]);setError('');setStatus('')}
+function pick(list: FileList | null) {
+  if (!list || list.length === 0) return;
+
+  const selectedFiles = Array.from(list);
+
+  if (tool.slug === 'merge-pdf' || tool.slug === 'jpg-to-pdf') {
+    setFiles(old => [...old, ...selectedFiles]);
+  } else {
+    setFiles(selectedFiles);
+  }
+
+  setOutputs([]);
+  setError('');
+  setStatus('');
+}
  async function run(){setBusy(true);setError('');setStatus('');setOutputs([]);try{
   if(!files.length)throw new Error('Please select a file first.');
   const f=files[0],base=f.name.replace(/\.[^.]+$/,'');
@@ -30,7 +44,17 @@ export default function ToolWorkspace({tool}:{tool:Tool}){
    const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';downloadBlob(blob,`${base}-${tool.slug}.${ext}`);if(!status)setStatus(`Done. Original: ${fmt(f.size)}. Output: ${fmt(blob.size)}.`)
   }
  }catch(e){setError(e instanceof Error?e.message:'Something went wrong. Please try again.')}finally{setBusy(false)}}
- return <div className="workbench"><div className="dropzone" role="button" tabIndex={0} onClick={()=>input.current?.click()} onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')input.current?.click()}} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();pick(e.dataTransfer.files)}}><input ref={input} type="file" accept={accept} multiple={tool.slug==='merge-pdf'||tool.slug==='jpg-to-pdf'} hidden onChange={e=>pick(e.target.files)}/><Upload size={30} color="#2563eb" style={{margin:'0 auto'}}/><h3>Choose {isPdf?'PDF':'image'} file{tool.slug==='merge-pdf'||tool.slug==='jpg-to-pdf'?'s':''}</h3><p>Click to browse or drag and drop {isPdf?'your files':'an image'} here</p><p style={{marginTop:8}}>Files stay on your device</p></div>
+ return <div className="workbench"><div className="dropzone" role="button" tabIndex={0} onClick={()=>input.current?.click()} onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')input.current?.click()}} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();pick(e.dataTransfer.files)}}><input
+  ref={input}
+  type="file"
+  accept={accept}
+  multiple={tool.slug === 'merge-pdf' || tool.slug === 'jpg-to-pdf'}
+  hidden
+  onChange={e => {
+    pick(e.target.files);
+    e.currentTarget.value = '';
+  }}
+/>ck(e.target.files)}/><Upload size={30} color="#2563eb" style={{margin:'0 auto'}}/><h3>Choose {isPdf?'PDF':'image'} file{tool.slug==='merge-pdf'||tool.slug==='jpg-to-pdf'?'s':''}</h3><p>Click to browse or drag and drop {isPdf?'your files':'an image'} here</p><p style={{marginTop:8}}>Files stay on your device</p></div>
  {files.length>0&&<div className="file-list">{files.map((f,i)=><div className="file-item" key={i}><span style={{display:'flex',alignItems:'center',gap:8}}>{isPdf?<FileText size={16}/>:<ImageIcon size={16}/>}<span>{f.name} <span style={{color:'#8191a8'}}>({fmt(f.size)})</span></span></span><button aria-label="Remove file" onClick={()=>setFiles(old=>old.filter((_,j)=>j!==i))} style={{border:0,background:'none',color:'#8191a8',cursor:'pointer'}}><Trash2 size={16}/></button></div>)}</div>}
  {['split-pdf','delete-pdf-pages','rotate-pdf','resize-image','compress-image','convert-image','image-to-50kb','pdf-to-jpg'].includes(tool.slug)&&<div className="controls">
  {tool.slug==='split-pdf'&&<><label className="field">First page<input type="number" min="1" value={start} onChange={e=>setStart(e.target.value)}/></label><label className="field">Last page<input type="number" min="1" value={end} onChange={e=>setEnd(e.target.value)}/></label></>}
