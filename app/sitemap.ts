@@ -1,0 +1,2 @@
+import type {MetadataRoute} from 'next';import {tools} from '@/lib/tools';
+export default function sitemap():MetadataRoute.Sitemap{const base='https://toolnest.pages.dev';return [{url:base,lastModified:new Date(),changeFrequency:'weekly',priority:1},...tools.map(t=>({url:`${base}/tools/${t.slug}`,lastModified:new Date(),changeFrequency:'monthly' as const,priority:.8})),...['about','contact','privacy','terms'].map(p=>({url:`${base}/${p}`,lastModified:new Date(),changeFrequency:'yearly' as const,priority:.3}))]}
