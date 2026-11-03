@@ -54,7 +54,7 @@ function pick(list: FileList | null) {
     pick(e.target.files);
     e.currentTarget.value = '';
   }}
-/>ck(e.target.files)}/><Upload size={30} color="#2563eb" style={{margin:'0 auto'}}/><h3>Choose {isPdf?'PDF':'image'} file{tool.slug==='merge-pdf'||tool.slug==='jpg-to-pdf'?'s':''}</h3><p>Click to browse or drag and drop {isPdf?'your files':'an image'} here</p><p style={{marginTop:8}}>Files stay on your device</p></div>
+/><Upload size={30} color="#2563eb" style={{margin:'0 auto'}}/><h3>Choose {isPdf?'PDF':'image'} file{tool.slug==='merge-pdf'||tool.slug==='jpg-to-pdf'?'s':''}</h3><p>Click to browse or drag and drop {isPdf?'your files':'an image'} here</p><p style={{marginTop:8}}>Files stay on your device</p></div>
  {files.length>0&&<div className="file-list">{files.map((f,i)=><div className="file-item" key={i}><span style={{display:'flex',alignItems:'center',gap:8}}>{isPdf?<FileText size={16}/>:<ImageIcon size={16}/>}<span>{f.name} <span style={{color:'#8191a8'}}>({fmt(f.size)})</span></span></span><button aria-label="Remove file" onClick={()=>setFiles(old=>old.filter((_,j)=>j!==i))} style={{border:0,background:'none',color:'#8191a8',cursor:'pointer'}}><Trash2 size={16}/></button></div>)}</div>}
  {['split-pdf','delete-pdf-pages','rotate-pdf','resize-image','compress-image','convert-image','image-to-50kb','pdf-to-jpg'].includes(tool.slug)&&<div className="controls">
  {tool.slug==='split-pdf'&&<><label className="field">First page<input type="number" min="1" value={start} onChange={e=>setStart(e.target.value)}/></label><label className="field">Last page<input type="number" min="1" value={end} onChange={e=>setEnd(e.target.value)}/></label></>}
