@@ -12,8 +12,8 @@ function canvasBlob(canvas:HTMLCanvasElement,type:string,quality:number):Promise
 export default function ToolWorkspace({tool}:{tool:Tool}){
  const [files,setFiles]=useState<File[]>([]),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState(''),[outputs,setOutputs]=useState<Output[]>([]);
  const [start,setStart]=useState('1'),[end,setEnd]=useState('1'),[pages,setPages]=useState('1'),[angle,setAngle]=useState('90'),[width,setWidth]=useState('800'),[height,setHeight]=useState('600'),[keep,setKeep]=useState(true),[quality,setQuality]=useState('0.82'),[format,setFormat]=useState('image/jpeg'),[target,setTarget]=useState('50');
- const input=useRef<HTMLInputElement>(null);const isPdf=tool.category==='PDF';
- const accept=isPdf?(tool.slug==='jpg-to-pdf'?'image/jpeg,image/png,image/webp':'.pdf,application/pdf'):'image/jpeg,image/png,image/webp';
+ const input=useRef<HTMLInputElement>(null);const isPdf=tool.category==='PDF';const isImageToPdf=tool.slug==='jpg-to-pdf';const isImageFile=!isPdf||isImageToPdf;
+ const accept=isImageToPdf?'image/jpeg,image/png,image/webp':isPdf?'.pdf,application/pdf':'image/jpeg,image/png,image/webp';
 function pick(list: FileList | null) {
   if (!list || list.length === 0) return;
 
@@ -36,17 +36,30 @@ function pick(list: FileList | null) {
   else if(tool.slug==='split-pdf'||tool.slug==='delete-pdf-pages'||tool.slug==='rotate-pdf'){const doc=await PDFDocument.load(await f.arrayBuffer());const count=doc.getPageCount();if(tool.slug==='split-pdf'){const a=Math.max(1,Number(start)),b=Math.min(count,Number(end));if(!Number.isInteger(a)||!Number.isInteger(b)||a>b)throw new Error(`Enter a valid page range from 1 to ${count}.`);const out=await PDFDocument.create();const copied=await out.copyPages(doc,Array.from({length:b-a+1},(_,i)=>a-1+i));copied.forEach(p=>out.addPage(p));downloadBlob(new Blob([await out.save() as BlobPart],{type:'application/pdf'}),`${base}-pages-${a}-${b}.pdf`);setStatus(`Extracted pages ${a}–${b}.`)}else if(tool.slug==='delete-pdf-pages'){const remove=new Set(pages.split(',').map(x=>Number(x.trim())).filter(x=>Number.isInteger(x)&&x>=1&&x<=count));if(!remove.size)throw new Error(`Enter page numbers between 1 and ${count}, separated by commas.`);if(remove.size>=count)throw new Error('You cannot delete every page.');[...remove].sort((a,b)=>b-a).forEach(n=>doc.removePage(n-1));downloadBlob(new Blob([await doc.save() as BlobPart],{type:'application/pdf'}),`${base}-edited.pdf`);setStatus(`Removed ${remove.size} page(s).`)}else{const rot=Number(angle);doc.getPages().forEach(p=>p.setRotation(degrees((p.getRotation().angle+rot)%360)));downloadBlob(new Blob([await doc.save() as BlobPart],{type:'application/pdf'}),`${base}-rotated.pdf`);setStatus(`Rotated ${count} page(s) by ${rot}°.`)}}
   else if(tool.slug==='jpg-to-pdf'){const out=await PDFDocument.create();for(const file of files){const bytes=await file.arrayBuffer();const type=file.type;const embedded=type==='image/png'?await out.embedPng(bytes):await out.embedJpg(type==='image/jpeg'?bytes:await (async()=>{const im=await imageFrom(file);const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext('2d')!.drawImage(im,0,0);return (await canvasBlob(c,'image/jpeg',.92)).arrayBuffer()})());const page=out.addPage([embedded.width,embedded.height]);page.drawImage(embedded,{x:0,y:0,width:embedded.width,height:embedded.height})}downloadBlob(new Blob([await out.save() as BlobPart],{type:'application/pdf'}),'images.pdf');setStatus(`Created a PDF from ${files.length} image(s).`)}
   else if(tool.slug==='pdf-to-jpg'){const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=`https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;const pdf=await pdfjs.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;const made:Output[]=[];for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n);const viewport=page.getViewport({scale:1.6});const canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;await page.render({canvasContext:canvas.getContext('2d')!,viewport}).promise;const blob=await canvasBlob(canvas,'image/jpeg',Number(quality));const url=URL.createObjectURL(blob);made.push({name:`${base}-page-${n}.jpg`,url,size:blob.size})}setOutputs(made);setStatus(`Rendered ${made.length} page(s). Download each JPG below.`)}
-  else {const im=await imageFrom(f);const c=document.createElement('canvas');const ctx=c.getContext('2d');if(!ctx)throw new Error('Your browser does not support canvas processing.');let w=im.naturalWidth,h=im.naturalHeight;
-   if(tool.slug==='resize-image'){w=Math.max(1,Number(width));h=Math.max(1,Number(height));if(keep){const ratio=Math.min(w/im.naturalWidth,h/im.naturalHeight);w=Math.round(im.naturalWidth*ratio);h=Math.round(im.naturalHeight*ratio)}}
-   c.width=w;c.height=h;ctx.drawImage(im,0,0,w,h);let mime=tool.slug==='convert-image'?format:'image/jpeg';if(mime==='image/jpeg'){ctx.fillStyle='#fff';ctx.globalCompositeOperation='destination-over';ctx.fillRect(0,0,w,h);ctx.globalCompositeOperation='source-over'}
-   let q=Number(quality);let blob=await canvasBlob(c,mime,q);
-   if(tool.slug==='image-to-50kb'){const limit=Math.max(5,Number(target))*1024;for(let i=0;i<12&&blob.size>limit&&q>.12;i++){q=Math.max(.12,q-.07);blob=await canvasBlob(c,'image/jpeg',q)}if(blob.size>limit)setStatus(`Closest result is ${fmt(blob.size)}; this image could not reach ${target}KB at its current dimensions.`);else setStatus(`Output is ${fmt(blob.size)} (target ${target}KB).`)}
-   const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';downloadBlob(blob,`${base}-${tool.slug}.${ext}`);if(!status)setStatus(`Done. Original: ${fmt(f.size)}. Output: ${fmt(blob.size)}.`)
+  else {
+   const im=await imageFrom(f);const c=document.createElement('canvas');const ctx=c.getContext('2d');if(!ctx)throw new Error('Your browser does not support canvas processing.');let w=im.naturalWidth,h=im.naturalHeight;
+   if(tool.slug==='resize-image'){w=Math.max(1,Math.round(Number(width)));h=Math.max(1,Math.round(Number(height)));if(!Number.isFinite(w)||!Number.isFinite(h)||w<1||h<1)throw new Error('Enter valid image dimensions.');if(keep){const ratio=Math.min(w/im.naturalWidth,h/im.naturalHeight);w=Math.max(1,Math.round(im.naturalWidth*ratio));h=Math.max(1,Math.round(im.naturalHeight*ratio))}}
+   c.width=w;c.height=h;ctx.drawImage(im,0,0,w,h);let mime=tool.slug==='convert-image'?format:'image/jpeg';
+   if(mime==='image/jpeg'){ctx.fillStyle='#fff';ctx.globalCompositeOperation='destination-over';ctx.fillRect(0,0,w,h);ctx.globalCompositeOperation='source-over'}
+   let q=Number(quality);let blob=await canvasBlob(c,mime,q);let resultMessage='';
+   if(tool.slug==='image-to-50kb'){
+    const requested=Number(target);if(!Number.isFinite(requested)||requested<5||requested>1000)throw new Error('Choose a target size between 5 KB and 1000 KB.');
+    const limit=requested*1024;let attempts=0;
+    while(blob.size>limit&&attempts<28){
+     attempts++;
+     if(q>0.15){q=Math.max(0.15,q-0.1)}
+     else {w=Math.max(1,Math.round(w*0.85));h=Math.max(1,Math.round(h*0.85));c.width=w;c.height=h;ctx.drawImage(im,0,0,w,h);ctx.fillStyle='#fff';ctx.globalCompositeOperation='destination-over';ctx.fillRect(0,0,w,h);ctx.globalCompositeOperation='source-over';q=0.75}
+     blob=await canvasBlob(c,'image/jpeg',q);
+    }
+    resultMessage=blob.size>limit?`Closest result: ${fmt(blob.size)}. This image could not reach ${requested} KB even after reducing its dimensions.`:`Done. Output: ${fmt(blob.size)} (target ${requested} KB). Original: ${fmt(f.size)}.`;
+   } else {resultMessage=`Done. Original: ${fmt(f.size)}. Output: ${fmt(blob.size)}.`}
+   const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';downloadBlob(blob,`${base}-${tool.slug}.${ext}`);setStatus(resultMessage);
   }
  }catch(e){setError(e instanceof Error?e.message:'Something went wrong. Please try again.')}finally{setBusy(false)}}
  return <div className="workbench"><div className="dropzone" role="button" tabIndex={0} onClick={()=>input.current?.click()} onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')input.current?.click()}} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();pick(e.dataTransfer.files)}}><input
   ref={input}
   type="file"
+  onClick={e => e.stopPropagation()}
   accept={accept}
   multiple={tool.slug === 'merge-pdf' || tool.slug === 'jpg-to-pdf'}
   hidden
@@ -54,8 +67,8 @@ function pick(list: FileList | null) {
     pick(e.target.files);
     e.currentTarget.value = '';
   }}
-/><Upload size={30} color="#2563eb" style={{margin:'0 auto'}}/><h3>Choose {isPdf?'PDF':'image'} file{tool.slug==='merge-pdf'||tool.slug==='jpg-to-pdf'?'s':''}</h3><p>Click to browse or drag and drop {isPdf?'your files':'an image'} here</p><p style={{marginTop:8}}>Files stay on your device</p></div>
- {files.length>0&&<div className="file-list">{files.map((f,i)=><div className="file-item" key={i}><span style={{display:'flex',alignItems:'center',gap:8}}>{isPdf?<FileText size={16}/>:<ImageIcon size={16}/>}<span>{f.name} <span style={{color:'#8191a8'}}>({fmt(f.size)})</span></span></span><button aria-label="Remove file" onClick={()=>setFiles(old=>old.filter((_,j)=>j!==i))} style={{border:0,background:'none',color:'#8191a8',cursor:'pointer'}}><Trash2 size={16}/></button></div>)}</div>}
+/><Upload size={30} color="#2563eb" style={{margin:'0 auto'}}/><h3>Choose {isImageToPdf?'image':isPdf?'PDF':'image'} file{tool.slug==='merge-pdf'||tool.slug==='jpg-to-pdf'?'s':''}</h3><p>Click to browse or drag and drop {isImageFile?'your image files':'your PDF files'} here</p><p style={{marginTop:8}}>Files stay on your device</p></div>
+ {files.length>0&&<div className="file-list">{files.map((f,i)=><div className="file-item" key={i}><span style={{display:'flex',alignItems:'center',gap:8}}>{isImageFile?<ImageIcon size={16}/>:<FileText size={16}/>}<span>{f.name} <span style={{color:'#8191a8'}}>({fmt(f.size)})</span></span></span><button aria-label="Remove file" onClick={()=>setFiles(old=>old.filter((_,j)=>j!==i))} style={{border:0,background:'none',color:'#8191a8',cursor:'pointer'}}><Trash2 size={16}/></button></div>)}</div>}
  {['split-pdf','delete-pdf-pages','rotate-pdf','resize-image','compress-image','convert-image','image-to-50kb','pdf-to-jpg'].includes(tool.slug)&&<div className="controls">
  {tool.slug==='split-pdf'&&<><label className="field">First page<input type="number" min="1" value={start} onChange={e=>setStart(e.target.value)}/></label><label className="field">Last page<input type="number" min="1" value={end} onChange={e=>setEnd(e.target.value)}/></label></>}
  {tool.slug==='delete-pdf-pages'&&<label className="field" style={{gridColumn:'1/-1'}}>Pages to delete<input value={pages} onChange={e=>setPages(e.target.value)} placeholder="Example: 2, 4, 7"/></label>}

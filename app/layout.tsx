@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   description:
     'Free online PDF and image tools. Merge, split, convert, rotate, resize and compress files securely in your browser.',
   metadataBase: new URL('https://toolnest.yadavvishwas09.workers.dev'),
+  alternates: { canonical: '/' },
   verification: {
     google: 'urqqKKdD4-TzBrAn2gYcy1Cx0LrRcbWFD4I_CtjuXV0'
   },

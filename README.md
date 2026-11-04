@@ -13,7 +13,7 @@ A Next.js 15 App Router project with 10 client-side PDF and image tools. The int
 7. Compress Image — encode a smaller JPG at a selected quality.
 8. Resize Image — resize to fit within specified dimensions, optionally preserving aspect ratio.
 9. Convert Image — convert to JPG, PNG or WebP.
-10. Image to 50KB — iteratively lower JPEG quality to approach a target size; dimensions are not reduced automatically.
+10. Image to 50KB — lower JPEG quality and, if needed, reduce dimensions to approach a target size.
 
 ## Requirements
 
@@ -36,25 +36,23 @@ npm run build
 npm start
 ```
 
-## Cloudflare Pages deployment (static export)
+## Cloudflare Workers deployment (static assets)
 
-This project is configured for a static export because all tools run in the browser and there are no server actions, API routes or database dependencies.
+This project uses Next.js static export (`output: 'export'`) and Wrangler serves the generated `out` directory as static assets. It is deployed as a Cloudflare Worker, not Cloudflare Pages.
 
-1. Create a GitHub repository and push this project.
-2. In Cloudflare Dashboard, open **Workers & Pages → Create → Pages → Connect to Git**.
-3. Select the repository.
-4. Set build command to `npm run build`.
-5. Set build output directory to `out`.
-6. Use Node.js 20 or newer in the build environment.
-7. Deploy. Cloudflare will provide a `*.pages.dev` address.
-8. Add a custom domain later if desired, then update the canonical URL in `app/layout.tsx` and `app/sitemap.ts`.
+1. Push the project to the connected GitHub repository.
+2. In Cloudflare, open the `toolnest` Worker project connected to GitHub.
+3. Build command: `npm run build`.
+4. Deploy command: `npx wrangler deploy`.
+5. Root directory: `/` (the folder containing `package.json` and `wrangler.jsonc`).
+6. Use Node.js 20.9 or newer for the build environment.
 
-Cloudflare's Next.js support and adapter guidance can change. If you later add server-side features, move from static Pages export to Cloudflare's current Next.js/OpenNext Workers guide: https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/ .
+The canonical public address currently configured in metadata, `robots.txt`, and `sitemap.xml` is `https://toolnest.yadavvishwas09.workers.dev`. If the public address changes, update all three places together.
 
 ## Before public launch
 
-- Replace `toolnest.pages.dev` in `app/layout.tsx` and `app/sitemap.ts` with your actual canonical domain.
-- Replace `hello@toolnest.example` in `app/contact/page.tsx` with an email address you control.
+- The contact page currently uses `yadavvishwas04@gmail.com`. Change it if you later choose a dedicated business email.
+- Keep the canonical address consistent in `app/layout.tsx`, `public/robots.txt`, and `public/sitemap.xml`.
 - Review and adapt the starter Privacy Policy and Terms for your actual hosting, analytics, ad network, consent setup and target markets.
 - Add a real favicon, brand assets and social preview image.
 - Verify every tool with representative files and on mobile browsers.
@@ -67,6 +65,6 @@ Cloudflare's Next.js support and adapter guidance can change. If you later add s
 - PDF operations use `pdf-lib` in the browser. Password-protected/encrypted PDFs may fail to load.
 - PDF-to-JPG uses PDF.js and downloads each rendered page separately; it does not bundle a ZIP.
 - Image compression uses canvas JPEG encoding. PNG transparency is flattened to white when exporting JPEG.
-- Image-to-50KB tries quality changes only. Some images cannot reach the requested target without resizing.
+- Image-to-50KB lowers JPEG quality and, when needed, reduces dimensions to try to reach the requested target. Very detailed images may still remain above the target.
 - Very large files can exceed browser memory limits. Browser support and output fidelity should be tested before production use.
 - The current site has ad placeholders only. No advertising code is installed.

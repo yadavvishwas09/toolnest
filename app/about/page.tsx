@@ -1,1 +1,17 @@
-import type {Metadata} from 'next';export const metadata:Metadata={title:'About ToolNest'};export default function About(){return <main className="container page-copy"><h1>About ToolNest</h1><p>ToolNest is a collection of straightforward browser-based utilities for everyday PDF and image tasks. Our aim is to make common file operations accessible without requiring an account or installing desktop software.</p><p>Where supported, processing happens locally in your browser. ToolNest is an independent utility project and is not affiliated with Adobe, Google, Microsoft or other third-party file services.</p></main>}
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'About ToolNest',
+  description: 'Learn about ToolNest, a collection of free browser-based PDF and image utilities.',
+  alternates: { canonical: '/about/' }
+};
+
+export default function About() {
+  return (
+    <main className="container page-copy">
+      <h1>About ToolNest</h1>
+      <p>ToolNest is a collection of straightforward browser-based utilities for everyday PDF and image tasks. Our aim is to make common file operations accessible without requiring an account or installing desktop software.</p>
+      <p>Where supported, processing happens locally in your browser. ToolNest is an independent utility project and is not affiliated with Adobe, Google, Microsoft, or other third-party file services.</p>
+    </main>
+  );
+}
